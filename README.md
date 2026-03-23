@@ -44,7 +44,6 @@ The platform follows a **database-per-service** microservices pattern deployed o
 | **Orchestration** | Kubernetes, Helm, Istio |
 | **CI/CD** | GitHub Actions / Jenkins / GitLab CI |
 | **Monitoring** | Splunk DDynatrac, Grafana |
-| **IaC** | Terraform, Helm Charts |
 | **Resilience** | Polly (retry, circuit breaker, timeout) |
 
 ---
@@ -82,7 +81,7 @@ Retry (3x) → Circuit Breaker (5-fail) → Timeout (10s) → Fallback (DLQ)
 ### 10M+ Orders/Day with <1s Latency
 
 - **Horizontal Pod Autoscaling (HPA)** — Scales pods 2x–50x based on CPU and request rate; each pod handles ~2K TPS
-- **Async (RabbitMQ/Azure Service Bus)** — Orders dequeued in parallel; decouples write path from payment/shipping processing
+- **Async  API communication (RabbitMQ/Azure Service Bus)** — Orders dequeued in parallel; decouples write path from payment/shipping processing
 - **Database Read Replicas + Sharding** — PostgreSQL read replicas for queries; MongoDB partitioned by category
 - **Redis Caching** — Sub-millisecond reads; reduces DB load by ~80%; 24h TTL for cart sessions
 - **CQRS Pattern** — Separate read/write models; reads served from optimized projections (<50ms p99)
@@ -153,19 +152,3 @@ ECommercePlatform/
 | `GET` | `/api/v1/categories/{id}` | Get category by ID | `CategoryResponse` |
 | `POST` | `/api/v1/categories` | Create new category | `201 Created` |
 | `DELETE` | `/api/v1/categories/{id}` | Delete category | `204 No Content` |
-
-## CI/CD Pipeline
-
-```
-Developer Push → CI Server → Build & Unit Tests → Docker Build & Push
-→ Container Registry → Helm Charts & kubectl → K8s Cluster → Health Checks & Rollback
-```
-
-The pipeline supports **GitHub Actions**, **Jenkins**, and **GitLab CI** — configure your preferred CI server in the `.github/workflows/` or `Jenkinsfile`.
-
----
-
-
-> **Note:** Never commit secrets. Use environment variables, Kubernetes Secrets, or HashiCorp Vault in production.
----
-
