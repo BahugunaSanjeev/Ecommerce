@@ -9,13 +9,13 @@ A cloud-agnostic, microservices-based order management system designed to handle
 
 <img width="4221" height="3010" alt="Ecommerce_architecture" src="https://github.com/user-attachments/assets/1e4d4ea9-e986-4e78-94a2-d9f5806ff1c1" />
 
-Cloud Architecture using Microsoft Azure
+## Cloud Architecture using Microsoft Azure
 <img width="5268" height="2636" alt="image" src="https://github.com/user-attachments/assets/e9923c57-af46-486c-bedc-e89879d61d56" />
 
 
 [Global_ECommerce_Order_Management_Platform_Architecture.docx](https://github.com/user-attachments/files/26178741/Global_ECommerce_Order_Management_Platform_Architecture.docx)
 
-The platform follows a **database-per-service** microservices pattern deployed on **Kubernetes**, communicating asynchronously via **RabbitMQ** with resilience patterns powered by **Polly**.
+The platform follows a **database-per-service** microservices pattern deployed on **Kubernetes**, communicating asynchronously via **RabbitMQ/ Azure Service Bus** with resilience patterns powered by **Polly**.
 
 ---
 
@@ -68,11 +68,9 @@ Retry (3x) → Circuit Breaker (5-fail) → Timeout (10s) → Fallback (DLQ)
 
 | Control | Implementation |
 |---------|---------------|
-| **Data at Rest** | AES-256 encryption via DB-level TDE |
-| **Data in Transit** | TLS 1.3 on all endpoints and inter-service communication |
-| **Secrets Management** | HashiCorp Vault / Sealed Secrets |
+| **Secrets Management** | Azure Key Valut/HashiCorp Vault  |
 | **Tokenization** | Card numbers never stored — delegated to Stripe/PayPal |
-| **Authentication** | OAuth2 / OIDC with JWT tokens |
+| **Authentication** | OAuth2 JWT tokens |
 | **Authorization** | RBAC + Kubernetes Pod Security Standards |
 | **Network** | Network Policies, service mesh (Istio) mTLS |
 | **Compliance** | PCI-DSS Level 1, GDPR |
