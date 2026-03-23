@@ -82,7 +82,7 @@ Retry (3x) → Circuit Breaker (5-fail) → Timeout (10s) → Fallback (DLQ)
 ### 10M+ Orders/Day with <1s Latency
 
 - **Horizontal Pod Autoscaling (HPA)** — Scales pods 2x–50x based on CPU and request rate; each pod handles ~2K TPS
-- **Async Event-Driven (RabbitMQ)** — Orders dequeued in parallel; decouples write path from payment/shipping processing
+- **Async (RabbitMQ/Azure Service Bus)** — Orders dequeued in parallel; decouples write path from payment/shipping processing
 - **Database Read Replicas + Sharding** — PostgreSQL read replicas for queries; MongoDB partitioned by category
 - **Redis Caching** — Sub-millisecond reads; reduces DB load by ~80%; 24h TTL for cart sessions
 - **CQRS Pattern** — Separate read/write models; reads served from optimized projections (<50ms p99)
