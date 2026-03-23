@@ -21,13 +21,13 @@ The platform follows a **database-per-service** microservices pattern deployed o
 
 ## Microservices
 
-| Service | Responsibility | Database | Key Pattern |
+| Service | Responsibility | Database/ Message Broker | Key Pattern |
 |---------|---------------|----------|-------------|
-| **Product Catalog** | Browse products, categories, full-text search | MongoDB | Optimistic concurrency (ETag) |
-| **Order Service** | Cart management, order creation, lifecycle | PostgreSQL + Redis | Saga pattern, event-driven |
-| **Payment Service** | Process payments via Stripe/PayPal | PostgreSQL | Polly retry + circuit breaker |
-| **Shipping Service** | Track shipments via FedEx/UPS APIs | MongoDB | Async event consumer |
-| **Analytics Service** | Clickstreams, conversion rates, dashboards | ClickHouse | CQRS read projections |
+| **Product Catalog** | Browse products, categories, full-text search | No-SQL DB MongoDB/Cosmos | Optimistic concurrency (ETag) |
+| **Order Service** | Cart management, order creation, lifecycle |  No-SQL DB MongoDB/Cosmos + Redis | Saga pattern, event-driven |
+| **Payment Service** | Process payments via Stripe/PayPal | PostgreSQL/MS Sql/RRabbitMQ/Azure Service Bus | Polly retry + circuit breaker |
+| **Shipping Service** | Track shipments via FedEx/UPS APIs |  No-SQL DB MongoDB/Cosmos | Async event consumer |
+| **Analytics Service** | dashboards | Snowflake | CQRS read projections |
 
 ---
 
@@ -35,15 +35,15 @@ The platform follows a **database-per-service** microservices pattern deployed o
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | Angular, Ionic (mobile) |
+| **Frontend** | Angular|
 | **Backend** | .NET 8, ASP.NET Core Web API |
 | **Messaging** | RabbitMQ (queues + DLQ) |
-| **Databases** | PostgreSQL, MongoDB, ClickHouse |
+| **Databases** | PostgreSQL,  No-SQL DB MongoDB/CosmosMongoDB |
 | **Caching** | Redis (cart sessions, hot data) |
 | **Search** | Elasticsearch |
 | **Orchestration** | Kubernetes, Helm, Istio |
 | **CI/CD** | GitHub Actions / Jenkins / GitLab CI |
-| **Monitoring** | Prometheus, Grafana, Jaeger, ELK Stack |
+| **Monitoring** | Splunk DDynatrac, Grafana |
 | **IaC** | Terraform, Helm Charts |
 | **Resilience** | Polly (retry, circuit breaker, timeout) |
 
