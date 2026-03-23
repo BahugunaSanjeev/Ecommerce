@@ -103,153 +103,34 @@ Retry (3x) → Circuit Breaker (5-fail) → Timeout (10s) → Fallback (DLQ)
 
 ```
 ECommercePlatform/
-│
-├── ECommercePlatform.sln                        # Visual Studio solution file
-│
-├── ProductCatalogService/                       # Microservice 1: Product & Category Management
-│   ├── ProductCatalogService.csproj             #   Project file (.NET 8, NuGet packages)
-│   ├── Program.cs                               #   Service entry point & DI configuration
-│   ├── appsettings.json                         #   Configuration (Cosmos DB, Search, App Insights)
-│   ├── Configuration/
-│   │   └── CosmosDbSettings.cs                  #   Strongly-typed config: CosmosDbSettings, SearchSettings
-│   ├── Models/
-│   │   ├── Product.cs                           #   Product entity (17 properties, partition key)
-│   │   └── Category.cs                          #   Category entity (hierarchical, sort order)
-│   ├── DTOs/
-│   │   └── ProductDtos.cs                       #   Records: CreateProductRequest, UpdateProductRequest,
-│   │                                            #   ProductSearchRequest, ProductResponse, ProductListResponse,
-│   │                                            #   CategoryResponse, InventoryUpdateRequest
-│   ├── Repositories/
-│   │   ├── IProductRepository.cs                #   Interfaces: IProductRepository, ICategoryRepository
-│   │   └── CosmosProductRepository.cs           #   Cosmos DB implementation: CRUD, pagination,
-│   │                                            #   ETag-based optimistic concurrency,
-│   │                                            #   CosmosCategoryRepository, FeedIteratorExtensions
-│   ├── Services/
-│   │   ├── IProductService.cs                   #   Interfaces: IProductService, ICategoryService
-│   │   ├── ProductService.cs                    #   Business logic: CRUD, search delegation, mapping
-│   │   │                                        #   Also contains CategoryService implementation
-│   │   ├── IProductSearchService.cs             #   Interface: SearchAsync, IndexProductAsync, RemoveProductAsync
-│   │   └── AzureSearchService.cs                #   Full-text search: filters, sorting, pagination, indexing
-│   └── Controllers/
-│       ├── ProductsController.cs                #   REST API: GET/POST/PUT/DELETE/PATCH /api/v1/products
-│       │                                        #   8 endpoints: GetById, GetAll, GetByCategory, Search,
-│       │                                        #   Create, Update, Delete, UpdateInventory
-│       └── CategoriesController.cs              #   REST API: GET/POST/DELETE /api/v1/categories
-│                                                #   4 endpoints: GetAll, GetById, Create, Delete
-│
-├── OrderService/                                # Microservice 2: Cart & Order Management
-│   ├── OrderService.csproj                      #   Project file (.NET 8, EF Core, Redis, Service Bus)
-│   ├── Program.cs                               #   Service entry point & DI configuration
-│   ├── appsettings.json                         #   Configuration (SQL, Redis, Service Bus)
-│   ├── Configuration/
-│   │   └── OrderSettings.cs                     #   Strongly-typed config: OrderSettings, ServiceBusSettings
-│   ├── Models/
-│   │   ├── Order.cs                             #   Order entity (OrderStatus enum, line items, totals)
-│   │   └── Cart.cs                              #   Cart & CartItem models (Redis-backed, 24h TTL)
-│   ├── DTOs/
-│   │   └── OrderDtos.cs                         #   Records: CreateOrderRequest, OrderResponse,
-│   │                                            #   CartItemRequest, CartResponse
-│   ├── Data/
-│   │   └── OrderDbContext.cs                    #   EF Core DbContext with SQL Server / PostgreSQL
-│   ├── Events/
-│   │   └── OrderEvents.cs                       #   Integration events: OrderCreated, OrderConfirmed,
-│   │                                            #   OrderCancelled (published to RabbitMQ)
-│   ├── Services/
-│   │   ├── IOrderService.cs                     #   Interface: CreateOrder, GetOrder, UpdateStatus
-│   │   ├── OrderServiceImpl.cs                  #   Saga orchestration, event publishing, status mgmt
-│   │   ├── ICartService.cs                      #   Interface: AddItem, RemoveItem, GetCart, ClearCart
-│   │   ├── CartService.cs                       #   Redis-backed cart with 24h TTL
-│   │   ├── IEventPublisher.cs                   #   Interface: PublishAsync<T>
-│   │   └── ServiceBusEventPublisher.cs          #   RabbitMQ / Service Bus event publisher
-│   └── Controllers/
-│       ├── OrdersController.cs                  #   REST API: GET/POST/PUT /api/v1/orders
-│       └── CartController.cs                    #   REST API: GET/POST/DELETE /api/v1/cart
-│
-├── PaymentService/                              # Microservice 3: Payment Processing (PCI-DSS)
-│   ├── PaymentService.csproj                    #   Project file (.NET 8, EF Core, Polly, Stripe, PayPal)
-│   ├── Program.cs                               #   Service entry point, DI, Polly policy registration
-│   ├── appsettings.json                         #   Configuration (SQL, Stripe, PayPal, Service Bus)
-│   ├── Configuration/
-│   │   └── PaymentSettings.cs                   #   Strongly-typed config: StripeSettings, PayPalSettings
-│   ├── Models/
-│   │   └── Payment.cs                           #   Payment entity (PaymentStatus enum, provider, amounts)
-│   ├── DTOs/
-│   │   └── PaymentDtos.cs                       #   Records: ProcessPaymentRequest, PaymentResponse,
-│   │                                            #   RefundRequest, WebhookPayload
-│   ├── Adapters/
-│   │   ├── IPaymentProviderAdapter.cs           #   Interface: ProcessAsync, RefundAsync, ValidateWebhook
-│   │   ├── StripePaymentAdapter.cs              #   Stripe API: PaymentIntent, 3D Secure, refunds
-│   │   └── PayPalPaymentAdapter.cs              #   PayPal REST v2: OAuth2 token, capture flow, refunds
-│   ├── Resilience/
-│   │   └── ResiliencePolicies.cs                #   Polly: Retry (3x exponential backoff + jitter),
-│   │                                            #   Circuit Breaker (5-fail, 30s open),
-│   │                                            #   Timeout (10s), composed PolicyWrap
-│   ├── Data/
-│   │   └── PaymentDbContext.cs                  #   EF Core DbContext with SQL Server / PostgreSQL
-│   ├── Services/
-│   │   ├── IPaymentService.cs                   #   Interface: ProcessPayment, GetPayment, Refund
-│   │   ├── PaymentServiceImpl.cs                #   Core payment logic with Polly-wrapped provider calls
-│   │   ├── IPaymentEventPublisher.cs            #   Interface: PublishPaymentCompleted/Failed
-│   │   ├── ServiceBusPaymentEventPublisher.cs   #   Publishes payment events to RabbitMQ
-│   │   └── OrderCreatedEventConsumer.cs         #   BackgroundService: listens to OrderCreated events,
-│   │                                            #   triggers payment, routes to DLQ on failure
-│   └── Controllers/
-│       └── PaymentsController.cs                #   REST API: POST /api/v1/payments
-│                                                #   5 endpoints: Process, GetById, Refund,
-│                                                #   StripeWebhook, PayPalWebhook
-│
-└── docs/                                        # Documentation (optional)
-    ├── architecture-diagram.png                 #   Cloud-agnostic architecture diagram
-    └── architecture.drawio                      #   Editable draw.io file
-```
-
-### File Count Summary
-
-| Service | Files | Lines of Code (approx.) |
-|---------|-------|------------------------|
-| **ProductCatalogService** | 12 files | ~600 LOC |
-| **OrderService** | 14 files | ~700 LOC |
-| **PaymentService** | 15 files | ~800 LOC |
-| **Solution** | 1 file | — |
-| **Total** | **42 files** | **~2,100 LOC** |
-
+├── ProductCatalogService/
+│   ├── Controllers/          # Products & Categories APIs
+│   ├── Models/               # Product, Category entities
+│   ├── DTOs/                 # Request/Response DTOs
+│   ├── Repositories/         # MongoDB/Cosmos DB repository
+│   ├── Services/             # Business logic + search
+│   └── Program.cs            # Service entry point
+├── OrderService/
+│   ├── Controllers/          # Orders & Cart APIs
+│   ├── Models/               # Order, CartItem entities
+│   ├── DTOs/                 # Request/Response DTOs
+│   ├── Data/                 # EF Core DbContext
+│   ├── Services/             # Order logic + Saga orchestration
+│   └── Program.cs
+├── PaymentService/
+│   ├── Controllers/          # Payments & Webhooks APIs
+│   ├── Models/               # Payment entity
+│   ├── DTOs/                 # Request/Response DTOs
+│   ├── Adapters/             # Stripe & PayPal adapters
+│   ├── Resilience/           # Polly policies (retry, circuit breaker, timeout)
+│   ├── Services/             # Payment processing + event consumer
+│   ├── Data/                 # EF Core DbContext
+│   └── Program.cs
+└── ECommercePlatform.sln     # Visual Studio solution file
 ---
 
 ## Sample Microservice Deep-Dive: Product Catalog Service
 
-### Overview
-
-The Product Catalog Service manages the product inventory and categories for the e-commerce platform. It provides full-text search, pagination, and optimistic concurrency control for inventory updates.
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                      Product Catalog Service                             │
-│                                                                          │
-│  ┌───────────────┐    ┌───────────────┐    ┌──────────────────────┐     │
-│  │  Controllers   │───>│   Services    │───>│    Repositories      │     │
-│  │               │    │               │    │                      │     │
-│  │ Products      │    │ ProductSvc    │    │ CosmosProductRepo    │────────> MongoDB /
-│  │ Categories    │    │ CategorySvc   │    │ CosmosCategoryRepo   │         Cosmos DB
-│  └───────────────┘    │ SearchSvc     │    └──────────────────────┘     │
-│                       └───────┬───────┘                                  │
-│                               │                                          │
-│                       ┌───────▼────────┐                                 │
-│                       │  Elasticsearch  │                                 │
-│                       │  (Full-text)    │                                 │
-│                       └────────────────┘                                 │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-### Architecture Layers
-
-| Layer | Responsibility | Files |
-|-------|---------------|-------|
-| **Controllers** | HTTP request handling, validation, routing | `ProductsController.cs`, `CategoriesController.cs` |
-| **DTOs** | Request/response contracts (immutable records) | `ProductDtos.cs` |
-| **Services** | Business logic, orchestration, mapping | `ProductService.cs`, `AzureSearchService.cs` |
-| **Repositories** | Data access abstraction (Cosmos DB / MongoDB) | `CosmosProductRepository.cs` |
-| **Models** | Domain entities | `Product.cs`, `Category.cs` |
-| **Configuration** | Strongly-typed settings classes | `CosmosDbSettings.cs` |
 
 ### API Endpoints
 
@@ -275,259 +156,6 @@ The Product Catalog Service manages the product inventory and categories for the
 | `POST` | `/api/v1/categories` | Create new category | `201 Created` |
 | `DELETE` | `/api/v1/categories/{id}` | Delete category | `204 No Content` |
 
-### Data Models
-
-#### Product Entity
-
-```csharp
-public class Product
-{
-    public string Id { get; set; }              // Auto-generated GUID
-    public string Name { get; set; }            // Product name
-    public string Description { get; set; }     // Product description
-    public string Sku { get; set; }             // Stock Keeping Unit
-    public string CategoryId { get; set; }      // Foreign key to Category
-    public string CategoryName { get; set; }    // Denormalized for read performance
-    public decimal Price { get; set; }          // Price in specified currency
-    public string Currency { get; set; }        // Default: "USD"
-    public List<string> ImageUrls { get; set; } // Product image URLs
-    public Dictionary<string, string> Attributes { get; set; }  // Custom key-value pairs
-    public int InventoryCount { get; set; }     // Available stock quantity
-    public bool IsActive { get; set; }          // Soft delete flag
-    public DateTime CreatedAt { get; set; }     // UTC creation timestamp
-    public DateTime UpdatedAt { get; set; }     // UTC last-modified timestamp
-    public List<string> Tags { get; set; }      // Searchable tags
-    public string PartitionKey => CategoryId;   // Cosmos DB partition key
-}
-```
-
-#### Category Entity
-
-```csharp
-public class Category
-{
-    public string Id { get; set; }                  // Auto-generated GUID
-    public string Name { get; set; }                // Category name
-    public string Description { get; set; }         // Category description
-    public string? ParentCategoryId { get; set; }   // Hierarchical parent (nullable for root)
-    public string? ImageUrl { get; set; }           // Category image
-    public bool IsActive { get; set; }              // Soft delete flag
-    public int SortOrder { get; set; }              // Display ordering
-    public string PartitionKey => "category";       // Fixed partition key
-}
-```
-
-### Key Design Patterns
-
-#### 1. Repository Pattern
-
-The data access layer is abstracted behind interfaces, making it easy to swap MongoDB for any other database:
-
-```csharp
-public interface IProductRepository
-{
-    Task<Product?> GetByIdAsync(string id, string categoryId);
-    Task<(List<Product>, int TotalCount)> GetByCategoryAsync(string categoryId, int page, int pageSize);
-    Task<(List<Product>, int TotalCount)> GetAllAsync(int page, int pageSize, bool activeOnly = true);
-    Task<Product> CreateAsync(Product product);
-    Task<Product> UpdateAsync(Product product);
-    Task DeleteAsync(string id, string categoryId);
-    Task<bool> UpdateInventoryAsync(string id, string categoryId, int quantityChange);
-}
-```
-
-#### 2. Optimistic Concurrency (ETag)
-
-Inventory updates use ETag-based optimistic concurrency to prevent race conditions when multiple requests try to update the same product's stock simultaneously:
-
-```csharp
-public async Task<bool> UpdateInventoryAsync(string id, string categoryId, int quantityChange)
-{
-    const int maxRetries = 5;
-    for (int attempt = 0; attempt < maxRetries; attempt++)
-    {
-        // 1. Read current product + ETag
-        var response = await _container.ReadItemAsync<Product>(id, new PartitionKey(categoryId));
-        var product = response.Resource;
-        var etag = response.ETag;
-
-        // 2. Validate inventory
-        var newCount = product.InventoryCount + quantityChange;
-        if (newCount < 0) return false;  // Insufficient stock
-
-        // 3. Update with ETag condition (fails if document changed since read)
-        product.InventoryCount = newCount;
-        var options = new ItemRequestOptions { IfMatchEtag = etag };
-        await _container.ReplaceItemAsync(product, id, new PartitionKey(categoryId), options);
-        return true;
-    }
-    return false;  // All retries exhausted
-}
-```
-
-**How it works:**
-- Read the product and capture its ETag (version token)
-- Modify the inventory count
-- Write back with `IfMatchEtag` — if another request modified the document between read and write, Cosmos DB returns `412 Precondition Failed`
-- Retry with incremental backoff (up to 5 attempts, 50ms * attempt delay)
-
-#### 3. Full-Text Search (Elasticsearch / Cognitive Search)
-
-Product creation and updates trigger async indexing in the search engine:
-
-```csharp
-// Fire-and-forget indexing after product creation
-var created = await _productRepo.CreateAsync(product);
-_ = Task.Run(() => _searchService.IndexProductAsync(created));
-```
-
-Search supports:
-- **Full-text query** across name, description, tags
-- **Filters**: category, price range (`minPrice`, `maxPrice`), in-stock status
-- **Sorting**: by any field (asc/desc)
-- **Pagination**: `page` + `pageSize` with total count
-
-#### 4. Dependency Injection (Program.cs)
-
-```csharp
-// Cosmos DB Client (singleton — thread-safe, connection-pooled)
-builder.Services.AddSingleton(sp => {
-    var settings = builder.Configuration.GetSection("CosmosDb").Get<CosmosDbSettings>()!;
-    return new CosmosClient(settings.ConnectionString, new CosmosClientOptions {
-        ConnectionMode = ConnectionMode.Direct,
-        SerializerOptions = new CosmosSerializationOptions {
-            PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
-        }
-    });
-});
-
-// Repository layer (scoped — one per HTTP request)
-builder.Services.AddScoped<IProductRepository, CosmosProductRepository>();
-builder.Services.AddScoped<ICategoryRepository, CosmosCategoryRepository>();
-
-// Service layer (scoped)
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<ICategoryService, CategoryService>();
-builder.Services.AddScoped<IProductSearchService, AzureSearchService>();
-```
-
-### Configuration (`appsettings.json`)
-
-```json
-{
-  "CosmosDb": {
-    "ConnectionString": "AccountEndpoint=https://...;AccountKey=...;",
-    "DatabaseName": "ProductCatalog",
-    "ProductContainerName": "Products",
-    "CategoryContainerName": "Categories"
-  },
-  "Search": {
-    "Endpoint": "https://your-search-endpoint",
-    "ApiKey": "your-search-api-key",
-    "IndexName": "products-index"
-  }
-}
-```
-
-> **Production:** Replace with environment variables or HashiCorp Vault references. Never commit secrets.
-
-### NuGet Dependencies
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `Microsoft.Azure.Cosmos` | 3.37.1 | Cosmos DB / MongoDB API client |
-| `Azure.Search.Documents` | 11.5.1 | Elasticsearch / Cognitive Search client |
-| `Swashbuckle.AspNetCore` | 6.5.0 | Swagger / OpenAPI documentation |
-| `Serilog.AspNetCore` | 8.0.2 | Structured logging |
-| `Microsoft.ApplicationInsights.AspNetCore` | 2.22.0 | Application monitoring (Prometheus alternative) |
-
-### Health Check
-
-```
-GET /health → 200 OK (healthy) | 503 Service Unavailable (unhealthy)
-```
-
-Used by Kubernetes liveness/readiness probes:
-
-```yaml
-# Kubernetes deployment excerpt
-livenessProbe:
-  httpGet:
-    path: /health
-    port: 80
-  initialDelaySeconds: 15
-  periodSeconds: 30
-readinessProbe:
-  httpGet:
-    path: /health
-    port: 80
-  initialDelaySeconds: 5
-  periodSeconds: 10
-```
-
-### Database Initialization
-
-On startup, the service auto-creates the database and containers if they don't exist:
-
-```csharp
-var database = await cosmosClient.CreateDatabaseIfNotExistsAsync(settings.DatabaseName);
-await database.Database.CreateContainerIfNotExistsAsync(settings.ProductContainerName, "/partitionKey");
-await database.Database.CreateContainerIfNotExistsAsync(settings.CategoryContainerName, "/partitionKey");
-```
-
-**Partition Strategy:**
-- **Products**: Partitioned by `categoryId` — queries within a category hit a single partition (fast, low RU cost)
-- **Categories**: Fixed partition key `"category"` — small dataset, all in one partition
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- .NET 8 SDK
-- Docker & Docker Compose
-- Kubernetes cluster (minikube for local, or any cloud K8s)
-- Helm 3.x
-
-### Run Locally
-
-```bash
-# Clone the repository
-git clone https://github.com/<your-org>/ECommercePlatform.git
-cd ECommercePlatform
-
-# Restore and build all services
-dotnet restore
-dotnet build
-
-# Run individual services
-dotnet run --project ProductCatalogService
-dotnet run --project OrderService
-dotnet run --project PaymentService
-```
-
-### Deploy to Kubernetes
-
-```bash
-# Build Docker images
-docker build -t ecommerce/catalog-service ./ProductCatalogService
-docker build -t ecommerce/order-service ./OrderService
-docker build -t ecommerce/payment-service ./PaymentService
-
-# Push to container registry
-docker push <registry>/ecommerce/catalog-service
-docker push <registry>/ecommerce/order-service
-docker push <registry>/ecommerce/payment-service
-
-# Deploy with Helm
-helm upgrade --install ecommerce ./helm-charts \
-  --namespace ecommerce \
-  --create-namespace
-```
-
----
-
 ## CI/CD Pipeline
 
 ```
@@ -539,19 +167,7 @@ The pipeline supports **GitHub Actions**, **Jenkins**, and **GitLab CI** — con
 
 ---
 
-## Configuration
-
-Each service uses `appsettings.json` for configuration. Key settings:
-
-| Setting | Description |
-|---------|-------------|
-| `ConnectionStrings:*` | Database connection strings |
-| `RabbitMQ:Host` | RabbitMQ broker hostname |
-| `Redis:ConnectionString` | Redis cache connection |
-| `Stripe:SecretKey` | Stripe API secret key |
-| `PayPal:ClientId` | PayPal API client ID |
 
 > **Note:** Never commit secrets. Use environment variables, Kubernetes Secrets, or HashiCorp Vault in production.
-
 ---
 
