@@ -9,6 +9,7 @@ A cloud-agnostic, microservices-based order management system designed to handle
 
 <img width="4221" height="3010" alt="Ecommerce_architecture" src="https://github.com/user-attachments/assets/1e4d4ea9-e986-4e78-94a2-d9f5806ff1c1" />
 
+[Global_ECommerce_Order_Management_Platform_Architecture.docx](https://github.com/user-attachments/files/26178741/Global_ECommerce_Order_Management_Platform_Architecture.docx)
 
 The platform follows a **database-per-service** microservices pattern deployed on **Kubernetes**, communicating asynchronously via **RabbitMQ** with resilience patterns powered by **Polly**.
 
